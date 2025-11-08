@@ -1,9 +1,9 @@
+using AccessibilityMod.Navigation;
+using AccessibilityMod.Patches;
+using AccessibilityMod.UI;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.EventSystems;
-using AccessibilityMod.Navigation;
-using AccessibilityMod.UI;
-using AccessibilityMod.Patches;
-using MelonLoader;
 
 namespace AccessibilityMod.Input
 {
@@ -26,7 +26,9 @@ namespace AccessibilityMod.Input
                     navigationSystem.HandleWaypointNamingInput(typedCharacters);
                 }
 
-                bool confirm = UnityEngine.Input.GetKeyDown(KeyCode.Return) || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter);
+                bool confirm =
+                    UnityEngine.Input.GetKeyDown(KeyCode.Return)
+                    || UnityEngine.Input.GetKeyDown(KeyCode.KeypadEnter);
                 bool cancel = UnityEngine.Input.GetKeyDown(KeyCode.Escape);
 
                 if (confirm)
@@ -48,23 +50,27 @@ namespace AccessibilityMod.Input
             {
                 AnnounceCurrentSelection();
             }
-            
+
             // Toggle sorting mode: Semicolon (;) - toggles between distance and directional sorting
             if (UnityEngine.Input.GetKeyDown(KeyCode.Semicolon))
             {
                 navigationSystem.ToggleSortingMode();
             }
-            
+
             // Distance-based scene scanner: Quote (')
             if (UnityEngine.Input.GetKeyDown(KeyCode.Quote))
             {
                 navigationSystem.ScanSceneByDistance();
             }
-            
+
             bool leftBracketDown = UnityEngine.Input.GetKeyDown(KeyCode.LeftBracket);
             bool rightBracketDown = UnityEngine.Input.GetKeyDown(KeyCode.RightBracket);
-            bool ctrlHeld = UnityEngine.Input.GetKey(KeyCode.LeftControl) || UnityEngine.Input.GetKey(KeyCode.RightControl);
-            bool altHeld = UnityEngine.Input.GetKey(KeyCode.LeftAlt) || UnityEngine.Input.GetKey(KeyCode.RightAlt);
+            bool ctrlHeld =
+                UnityEngine.Input.GetKey(KeyCode.LeftControl)
+                || UnityEngine.Input.GetKey(KeyCode.RightControl);
+            bool altHeld =
+                UnityEngine.Input.GetKey(KeyCode.LeftAlt)
+                || UnityEngine.Input.GetKey(KeyCode.RightAlt);
 
             // Category selection keys (safe punctuation) + modifiers for waypoints
             if (leftBracketDown)
@@ -82,7 +88,7 @@ namespace AccessibilityMod.Input
                     navigationSystem.SelectCategory(ObjectCategory.NPCs);
                 }
             }
-            else if (rightBracketDown)  // ]
+            else if (rightBracketDown) // ]
             {
                 if (altHeld)
                 {
@@ -93,34 +99,36 @@ namespace AccessibilityMod.Input
                     navigationSystem.SelectCategory(ObjectCategory.Locations);
                 }
             }
-            else if (UnityEngine.Input.GetKeyDown(KeyCode.Backslash))  // \
+            else if (UnityEngine.Input.GetKeyDown(KeyCode.Backslash)) // \
             {
                 navigationSystem.SelectCategory(ObjectCategory.Loot);
             }
-            else if (UnityEngine.Input.GetKeyDown(KeyCode.Equals))  // =
+            else if (UnityEngine.Input.GetKeyDown(KeyCode.Equals)) // =
             {
                 navigationSystem.SelectCategory(ObjectCategory.Everything);
             }
-            
+
             // Cycle within current category: Period (.) forward, Shift+Period backward
             if (UnityEngine.Input.GetKeyDown(KeyCode.Period))
             {
-                bool shiftHeld = UnityEngine.Input.GetKey(KeyCode.LeftShift) || UnityEngine.Input.GetKey(KeyCode.RightShift);
+                bool shiftHeld =
+                    UnityEngine.Input.GetKey(KeyCode.LeftShift)
+                    || UnityEngine.Input.GetKey(KeyCode.RightShift);
                 navigationSystem.CycleWithinCategory(backward: shiftHeld);
             }
-            
+
             // Navigate to selected object: Comma (,)
             if (UnityEngine.Input.GetKeyDown(KeyCode.Comma))
             {
                 navigationSystem.NavigateToSelectedObject();
             }
-            
+
             // Stop automated movement: Slash (/)
             if (UnityEngine.Input.GetKeyDown(KeyCode.Slash))
             {
                 navigationSystem.StopMovement();
             }
-            
+
             // Toggle dialog reading mode: Minus/Hyphen (-)
             if (UnityEngine.Input.GetKeyDown(KeyCode.Minus))
             {
@@ -164,6 +172,12 @@ namespace AccessibilityMod.Input
                 SkillDescriptionReader.ReadSelectedSkillDescription();
             }
 
+            // Officer profile announcement: O key
+            if (UnityEngine.Input.GetKeyDown(KeyCode.O))
+            {
+                Patches.OfficerProfileAnnouncement.AnnounceOfficerProfile();
+            }
+
             // Handle Thought Cabinet specific input
             ThoughtCabinetNavigationHandler.HandleThoughtCabinetInput();
         }
@@ -178,7 +192,9 @@ namespace AccessibilityMod.Input
                     var currentSelection = eventSystem.currentSelectedGameObject;
                     if (currentSelection != null)
                     {
-                        string speechText = UIElementFormatter.FormatUIElementForSpeech(currentSelection);
+                        string speechText = UIElementFormatter.FormatUIElementForSpeech(
+                            currentSelection
+                        );
                         if (!string.IsNullOrEmpty(speechText))
                         {
                             TolkScreenReader.Instance.Speak(speechText, true); // Interrupt for on-demand announcements
@@ -187,7 +203,9 @@ namespace AccessibilityMod.Input
                         else
                         {
                             TolkScreenReader.Instance.Speak("Current selection has no text", true);
-                            MelonLogger.Msg($"[ON-DEMAND] Current selection: {currentSelection.name} (no formatted text)");
+                            MelonLogger.Msg(
+                                $"[ON-DEMAND] Current selection: {currentSelection.name} (no formatted text)"
+                            );
                         }
                     }
                     else
