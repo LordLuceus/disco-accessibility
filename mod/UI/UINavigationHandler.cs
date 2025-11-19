@@ -1,11 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using AccessibilityMod.Audio;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
-using MelonLoader;
-using AccessibilityMod.Audio;
 
 namespace AccessibilityMod.UI
 {
@@ -15,7 +15,8 @@ namespace AccessibilityMod.UI
         public static string lastSpokenText = "";
 
         // Track dialog responses for better single option detection
-        private static List<Il2Cpp.SunshineResponseButton> currentResponseButtons = new List<Il2Cpp.SunshineResponseButton>();
+        private static List<Il2Cpp.SunshineResponseButton> currentResponseButtons =
+            new List<Il2Cpp.SunshineResponseButton>();
         private static Il2Cpp.SunshineContinueButton lastSunshineContinueButton = null;
         private static float lastResponseCheckTime = 0f;
         private static readonly float RESPONSE_CHECK_INTERVAL = 0.5f; // Check for responses every 500ms
@@ -51,11 +52,13 @@ namespace AccessibilityMod.UI
             try
             {
                 // Detect keyboard arrow key presses for user navigation tracking
-                if (UnityEngine.Input.GetKeyDown(KeyCode.UpArrow) ||
-                    UnityEngine.Input.GetKeyDown(KeyCode.DownArrow) ||
-                    UnityEngine.Input.GetKeyDown(KeyCode.LeftArrow) ||
-                    UnityEngine.Input.GetKeyDown(KeyCode.RightArrow) ||
-                    UnityEngine.Input.GetKeyDown(KeyCode.Tab))
+                if (
+                    UnityEngine.Input.GetKeyDown(KeyCode.UpArrow)
+                    || UnityEngine.Input.GetKeyDown(KeyCode.DownArrow)
+                    || UnityEngine.Input.GetKeyDown(KeyCode.LeftArrow)
+                    || UnityEngine.Input.GetKeyDown(KeyCode.RightArrow)
+                    || UnityEngine.Input.GetKeyDown(KeyCode.Tab)
+                )
                 {
                     MarkUserNavigation();
                 }
@@ -73,7 +76,7 @@ namespace AccessibilityMod.UI
                 // Only check EventSystem selection (controller/keyboard navigation)
                 // Removed Selectable.Highlighted checking to prevent mouse hover announcements
                 CheckCurrentUISelection();
-                
+
                 // Check for dialog response buttons periodically
                 if (Time.time - lastResponseCheckTime > RESPONSE_CHECK_INTERVAL)
                 {
@@ -81,7 +84,7 @@ namespace AccessibilityMod.UI
                     CheckContinueButton();
                     lastResponseCheckTime = Time.time;
                 }
-                
+
                 // TODO: Proper dialog detection instead of scanning
             }
             catch (Exception ex)
@@ -98,7 +101,7 @@ namespace AccessibilityMod.UI
                 if (eventSystem != null)
                 {
                     var currentSelection = eventSystem.currentSelectedGameObject;
-                    
+
                     if (currentSelection != lastSelectedUIObject)
                     {
                         lastSelectedUIObject = currentSelection;
@@ -109,13 +112,20 @@ namespace AccessibilityMod.UI
                         // Check if this is a SunshineContinueButton selection
                         if (currentSelection != null)
                         {
-                            var sunshineContinueButton = currentSelection.GetComponent<Il2Cpp.SunshineContinueButton>();
-                            var sunshineContinueButtonParent = currentSelection.GetComponentInParent<Il2Cpp.SunshineContinueButton>();
+                            var sunshineContinueButton =
+                                currentSelection.GetComponent<Il2Cpp.SunshineContinueButton>();
+                            var sunshineContinueButtonParent =
+                                currentSelection.GetComponentInParent<Il2Cpp.SunshineContinueButton>();
 
-                            if (sunshineContinueButton != null || sunshineContinueButtonParent != null)
+                            if (
+                                sunshineContinueButton != null
+                                || sunshineContinueButtonParent != null
+                            )
                             {
                                 // Extract text from the button
-                                string continueText = UIElementFormatter.FormatUIElementForSpeech(currentSelection);
+                                string continueText = UIElementFormatter.FormatUIElementForSpeech(
+                                    currentSelection
+                                );
                                 if (string.IsNullOrEmpty(continueText))
                                 {
                                     continueText = "Continue";
@@ -123,10 +133,17 @@ namespace AccessibilityMod.UI
 
                                 // If user is actively navigating, always announce immediately
                                 // Otherwise, queue if dialogue audio is playing
-                                var category = IsUserNavigating() || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
-                                    ? AnnouncementCategory.Immediate
-                                    : AnnouncementCategory.Queueable;
-                                TolkScreenReader.Instance.Speak(continueText, false, category, AnnouncementSource.UI);
+                                var category =
+                                    IsUserNavigating()
+                                    || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
+                                        ? AnnouncementCategory.Immediate
+                                        : AnnouncementCategory.Queueable;
+                                TolkScreenReader.Instance.Speak(
+                                    continueText,
+                                    false,
+                                    category,
+                                    AnnouncementSource.UI
+                                );
                                 return;
                             }
                         }
@@ -134,15 +151,23 @@ namespace AccessibilityMod.UI
                         // Skip skill check buttons as they're handled by SkillCheckTooltipPatches
                         if (currentSelection != null)
                         {
-                            var responseButton = currentSelection.GetComponent<Il2Cpp.SunshineResponseButton>();
-                            if (responseButton != null && (responseButton.whiteCheck || responseButton.redCheck))
+                            var responseButton =
+                                currentSelection.GetComponent<Il2Cpp.SunshineResponseButton>();
+                            if (
+                                responseButton != null
+                                && (responseButton.whiteCheck || responseButton.redCheck)
+                            )
                             {
                                 return; // Skill check buttons are handled by SkillCheckTooltipPatches
                             }
                         }
 
                         // Skip journal elements as they're handled by JournalPatches
-                        if (currentSelection != null && currentSelection.GetComponent<Il2CppSunshine.Journal.JournalTaskUI>() != null)
+                        if (
+                            currentSelection != null
+                            && currentSelection.GetComponent<Il2CppSunshine.Journal.JournalTaskUI>()
+                                != null
+                        )
                         {
                             return; // Journal elements are handled by their own patches
                         }
@@ -150,15 +175,22 @@ namespace AccessibilityMod.UI
                         // Skip map tab skill checks as they're handled by MapTabSkillCheckPatches
                         if (currentSelection != null)
                         {
-                            if (currentSelection.GetComponent<Il2Cpp.JournalWhiteCheckUI>() != null ||
-                                currentSelection.GetComponent<Il2Cpp.PageSystemJournalWhiteCheckUI>() != null)
+                            if (
+                                currentSelection.GetComponent<Il2Cpp.JournalWhiteCheckUI>() != null
+                                || currentSelection.GetComponent<Il2Cpp.PageSystemJournalWhiteCheckUI>()
+                                    != null
+                            )
                             {
                                 return; // Map tab skill checks are handled by MapTabSkillCheckPatches
                             }
                         }
 
                         // Skip QuicktravelButton as they're handled by MapPatches
-                        if (currentSelection != null && currentSelection.GetComponent<Il2CppSunshine.Journal.QuicktravelButton>() != null)
+                        if (
+                            currentSelection != null
+                            && currentSelection.GetComponent<Il2CppSunshine.Journal.QuicktravelButton>()
+                                != null
+                        )
                         {
                             return; // Fast travel buttons are handled by MapPatches
                         }
@@ -166,10 +198,10 @@ namespace AccessibilityMod.UI
                         // Handle character sheet skill elements with delay
                         if (currentSelection != null)
                         {
-                            var skillPanel = currentSelection.GetComponentInParent<Il2Cpp.SkillPortraitPanel>();
+                            var skillPanel =
+                                currentSelection.GetComponentInParent<Il2Cpp.SkillPortraitPanel>();
                             if (skillPanel != null)
                             {
-
                                 // Schedule delayed skill announcement to allow game to update descriptions
                                 MelonCoroutines.Start(DelayedSkillAnnouncement(currentSelection));
                                 return;
@@ -177,16 +209,25 @@ namespace AccessibilityMod.UI
                         }
 
                         // Extract text and format for speech with UI context
-                        string speechText = UIElementFormatter.FormatUIElementForSpeech(currentSelection);
+                        string speechText = UIElementFormatter.FormatUIElementForSpeech(
+                            currentSelection
+                        );
 
                         if (!string.IsNullOrEmpty(speechText))
                         {
                             // If user is actively navigating with arrow keys, always announce immediately
                             // Otherwise, queue if dialogue audio is playing
-                            var category = IsUserNavigating() || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
-                                ? AnnouncementCategory.Immediate
-                                : AnnouncementCategory.Queueable;
-                            TolkScreenReader.Instance.Speak(speechText, false, category, AnnouncementSource.UI);
+                            var category =
+                                IsUserNavigating()
+                                || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
+                                    ? AnnouncementCategory.Immediate
+                                    : AnnouncementCategory.Queueable;
+                            TolkScreenReader.Instance.Speak(
+                                speechText,
+                                false,
+                                category,
+                                AnnouncementSource.UI
+                            );
                             lastSpokenText = speechText;
                         }
                     }
@@ -197,7 +238,7 @@ namespace AccessibilityMod.UI
                 MelonLogger.Error($"Error checking EventSystem selection: {ex}");
             }
         }
-        
+
         /// <summary>
         /// Check for dialog response buttons state changes and announce single response scenarios
         /// </summary>
@@ -206,8 +247,9 @@ namespace AccessibilityMod.UI
             try
             {
                 // Find all SunshineResponseButton objects in the scene
-                var responseButtons = UnityEngine.Object.FindObjectsOfType<Il2Cpp.SunshineResponseButton>();
-                
+                var responseButtons =
+                    UnityEngine.Object.FindObjectsOfType<Il2Cpp.SunshineResponseButton>();
+
                 if (responseButtons == null || responseButtons.Length == 0)
                 {
                     // No responses, clear our tracking
@@ -218,10 +260,10 @@ namespace AccessibilityMod.UI
                     }
                     return;
                 }
-                
+
                 // Check if response buttons have changed
                 bool hasChanged = responseButtons.Length != currentResponseButtons.Count;
-                
+
                 if (!hasChanged)
                 {
                     // Check if any buttons are different
@@ -234,28 +276,30 @@ namespace AccessibilityMod.UI
                         }
                     }
                 }
-                
+
                 if (hasChanged)
                 {
                     // Update our tracking
                     currentResponseButtons.Clear();
                     List<string> responseTexts = new List<string>();
-                    
+
                     foreach (var button in responseButtons)
                     {
                         if (button != null && button.gameObject.activeInHierarchy)
                         {
                             currentResponseButtons.Add(button);
-                            
+
                             // Extract response text
-                            string responseText = UIElementFormatter.FormatDialogResponseText(button);
+                            string responseText = UIElementFormatter.FormatDialogResponseText(
+                                button
+                            );
                             if (!string.IsNullOrEmpty(responseText))
                             {
                                 responseTexts.Add(responseText);
                             }
                         }
                     }
-                    
+
                     // Notify DialogStateManager of available responses
                     DialogStateManager.OnResponsesUpdated(responseTexts);
 
@@ -268,14 +312,21 @@ namespace AccessibilityMod.UI
                         if (singleResponse != lastSpokenText)
                         {
                             bool isUserNav = IsUserNavigating();
-                            bool isAudioPlaying = AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying();
+                            bool isAudioPlaying =
+                                AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying();
 
                             // If user is actively navigating, always announce immediately
                             // Otherwise, queue if dialogue audio is playing
-                            var category = isUserNav || !isAudioPlaying
-                                ? AnnouncementCategory.Immediate
-                                : AnnouncementCategory.Queueable;
-                            TolkScreenReader.Instance.Speak($"Single option: {singleResponse}", false, category, AnnouncementSource.UI);
+                            var category =
+                                isUserNav || !isAudioPlaying
+                                    ? AnnouncementCategory.Immediate
+                                    : AnnouncementCategory.Queueable;
+                            TolkScreenReader.Instance.Speak(
+                                $"Single option: {singleResponse}",
+                                false,
+                                category,
+                                AnnouncementSource.UI
+                            );
                             lastSpokenText = singleResponse;
                         }
                     }
@@ -286,7 +337,7 @@ namespace AccessibilityMod.UI
                 MelonLogger.Error($"Error checking dialog responses: {ex}");
             }
         }
-        
+
         /// <summary>
         /// Check for SunshineContinueButton (single Continue button in dialogs)
         /// </summary>
@@ -295,9 +346,13 @@ namespace AccessibilityMod.UI
             try
             {
                 // Find SunshineContinueButton in the scene
-                var sunshineContinueButton = UnityEngine.Object.FindObjectOfType<Il2Cpp.SunshineContinueButton>();
+                var sunshineContinueButton =
+                    UnityEngine.Object.FindObjectOfType<Il2Cpp.SunshineContinueButton>();
 
-                if (sunshineContinueButton != null && sunshineContinueButton.gameObject.activeInHierarchy)
+                if (
+                    sunshineContinueButton != null
+                    && sunshineContinueButton.gameObject.activeInHierarchy
+                )
                 {
                     // Check if this is a new continue button or if it has changed
                     if (sunshineContinueButton != lastSunshineContinueButton)
@@ -305,7 +360,9 @@ namespace AccessibilityMod.UI
                         lastSunshineContinueButton = sunshineContinueButton;
 
                         // Try to extract text from the button
-                        string continueText = UIElementFormatter.FormatUIElementForSpeech(sunshineContinueButton.gameObject);
+                        string continueText = UIElementFormatter.FormatUIElementForSpeech(
+                            sunshineContinueButton.gameObject
+                        );
                         if (string.IsNullOrEmpty(continueText))
                         {
                             continueText = "Continue";
@@ -314,10 +371,17 @@ namespace AccessibilityMod.UI
                         // Announce the continue button
                         // If user is actively navigating, always announce immediately
                         // Otherwise, queue if dialogue audio is playing
-                        var category = IsUserNavigating() || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
-                            ? AnnouncementCategory.Immediate
-                            : AnnouncementCategory.Queueable;
-                        TolkScreenReader.Instance.Speak(continueText, false, category, AnnouncementSource.UI);
+                        var category =
+                            IsUserNavigating()
+                            || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
+                                ? AnnouncementCategory.Immediate
+                                : AnnouncementCategory.Queueable;
+                        TolkScreenReader.Instance.Speak(
+                            continueText,
+                            false,
+                            category,
+                            AnnouncementSource.UI
+                        );
 
                         // Also notify DialogStateManager about this single response
                         DialogStateManager.OnResponsesUpdated(new List<string> { continueText });
@@ -343,8 +407,9 @@ namespace AccessibilityMod.UI
         /// </summary>
         private static void CheckForDialogSelection(GameObject selectedObject)
         {
-            if (selectedObject == null) return;
-            
+            if (selectedObject == null)
+                return;
+
             try
             {
                 // Check if the selected object is a SunshineResponseButton
@@ -364,9 +429,9 @@ namespace AccessibilityMod.UI
                 MelonLogger.Error($"Error checking dialog selection: {ex}");
             }
         }
-        
+
         // Dialog text scanning removed - now using OnConversationLine patch in DialogSystemPatches instead
-        
+
         /// <summary>
         /// Check if text component likely contains dialog
         /// </summary>
@@ -374,20 +439,23 @@ namespace AccessibilityMod.UI
         {
             // Skip response button text (we handle those separately)
             var responseButton = tmpText.GetComponentInParent<Il2Cpp.SunshineResponseButton>();
-            if (responseButton != null) return false;
-            
+            if (responseButton != null)
+                return false;
+
             // Skip very long text (likely descriptions or UI text)
-            if (text.Length > 500) return false;
-            
+            if (text.Length > 500)
+                return false;
+
             // Look for dialog characteristics
             bool hasDialogLength = text.Length > 15 && text.Length < 300;
             bool hasQuotes = text.Contains("\"") || text.Contains(""") || text.Contains(""");
             bool hasPunctuation = text.Contains(".") || text.Contains("!") || text.Contains("?");
-            bool isConversational = text.Contains(" you ") || text.Contains(" I ") || text.Contains(" we ");
-            
+            bool isConversational =
+                text.Contains(" you ") || text.Contains(" I ") || text.Contains(" we ");
+
             return hasDialogLength && (hasQuotes || hasPunctuation || isConversational);
         }
-        
+
         /// <summary>
         /// Try to extract speaker name from text component context
         /// </summary>
@@ -400,23 +468,32 @@ namespace AccessibilityMod.UI
                 if (parent != null)
                 {
                     // Check siblings for speaker name
-                    var siblingTexts = parent.GetComponentsInChildren<Il2CppTMPro.TextMeshProUGUI>();
+                    var siblingTexts =
+                        parent.GetComponentsInChildren<Il2CppTMPro.TextMeshProUGUI>();
                     foreach (var sibling in siblingTexts)
                     {
-                        if (sibling != tmpText && sibling != null && !string.IsNullOrEmpty(sibling.text))
+                        if (
+                            sibling != tmpText
+                            && sibling != null
+                            && !string.IsNullOrEmpty(sibling.text)
+                        )
                         {
                             string siblingText = sibling.text.Trim();
-                            
+
                             // Look for speaker-like text (short, proper nouns)
-                            if (siblingText.Length > 2 && siblingText.Length < 30 && 
-                                char.IsUpper(siblingText[0]) && !siblingText.Contains(" "))
+                            if (
+                                siblingText.Length > 2
+                                && siblingText.Length < 30
+                                && char.IsUpper(siblingText[0])
+                                && !siblingText.Contains(" ")
+                            )
                             {
                                 return siblingText;
                             }
                         }
                     }
                 }
-                
+
                 return null; // No speaker found
             }
             catch (Exception ex)
@@ -425,7 +502,7 @@ namespace AccessibilityMod.UI
                 return null;
             }
         }
-        
+
         /// <summary>
         /// Format dialog text with speaker identification
         /// </summary>
@@ -435,10 +512,10 @@ namespace AccessibilityMod.UI
             {
                 return dialogText;
             }
-            
+
             // Clean up speaker name and identify type
             string cleanSpeaker = speakerName.Replace("_", " ");
-            
+
             // Check if it's a skill name
             if (IsSkillName(cleanSpeaker))
             {
@@ -453,19 +530,40 @@ namespace AccessibilityMod.UI
                 return $"{cleanSpeaker} says: {dialogText}";
             }
         }
-        
+
         /// <summary>
         /// Check if the speaker name is a skill
         /// </summary>
         private static bool IsSkillName(string speakerName)
         {
-            string[] skillNames = {
-                "Logic", "Encyclopedia", "Rhetoric", "Drama", "Conceptualization", "Visual Calculus",
-                "Volition", "Inland Empire", "Empathy", "Authority", "Suggestion", "Esprit de Corps",
-                "Physical Instrument", "Electrochemistry", "Endurance", "Half Light", "Pain Threshold", "Shivers",
-                "Hand Eye Coordination", "Perception", "Reaction Speed", "Savoir Faire", "Interfacing", "Composure"
+            string[] skillNames =
+            {
+                "Logic",
+                "Encyclopedia",
+                "Rhetoric",
+                "Drama",
+                "Conceptualization",
+                "Visual Calculus",
+                "Volition",
+                "Inland Empire",
+                "Empathy",
+                "Authority",
+                "Suggestion",
+                "Esprit de Corps",
+                "Physical Instrument",
+                "Electrochemistry",
+                "Endurance",
+                "Half Light",
+                "Pain Threshold",
+                "Shivers",
+                "Hand Eye Coordination",
+                "Perception",
+                "Reaction Speed",
+                "Savoir Faire",
+                "Interfacing",
+                "Composure",
             };
-            
+
             foreach (string skill in skillNames)
             {
                 if (speakerName.IndexOf(skill, StringComparison.OrdinalIgnoreCase) >= 0)
@@ -473,7 +571,7 @@ namespace AccessibilityMod.UI
                     return true;
                 }
             }
-            
+
             return false;
         }
 
@@ -492,12 +590,13 @@ namespace AccessibilityMod.UI
             {
                 // If user is actively navigating, always announce immediately
                 // Otherwise, queue if dialogue audio is playing
-                var category = IsUserNavigating() || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
-                    ? AnnouncementCategory.Immediate
-                    : AnnouncementCategory.Queueable;
+                var category =
+                    IsUserNavigating()
+                    || !AudioAwareAnnouncementManager.Instance.IsDialogueAudioPlaying()
+                        ? AnnouncementCategory.Immediate
+                        : AnnouncementCategory.Queueable;
                 TolkScreenReader.Instance.Speak(speechText, false, category, AnnouncementSource.UI);
             }
         }
-
     }
 }
