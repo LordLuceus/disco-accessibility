@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using HarmonyLib;
 using MelonLoader;
 using Il2CppSunshine.Views;
@@ -7,7 +9,9 @@ using Il2CppPages.Gameplay.Inventory;
 using Il2CppDiscoPages.Elements.Inventory;
 using Il2Cpp;
 using Il2CppPagesSystem;
+using Il2CppTMPro;
 using AccessibilityMod.Inventory;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace AccessibilityMod.Patches
@@ -455,25 +459,38 @@ namespace AccessibilityMod.Patches
                 // Add equipment effects/bonuses
                 if (item.equipEffects != null && item.equipEffects.Count > 0)
                 {
-                    result.Append(". Bonuses: ");
-                    foreach (var effect in item.equipEffects)
+                    // First try to get effects with flavor text from the tooltip
+                    var tooltipEffects = ExtractEffectsFromItemTooltip();
+                    if (tooltipEffects.Count > 0)
                     {
-                        if (effect != null)
+                        result.Append(". Bonuses: ");
+                        result.Append(string.Join(", ", tooltipEffects));
+                    }
+                    else
+                    {
+                        // Fall back to CharacterEffect API (no flavor text)
+                        result.Append(". Bonuses: ");
+                        var effectsList = new List<string>();
+                        foreach (var effect in item.equipEffects)
                         {
-                            // Format the effect properly with stat name and value
-                            string effectText = FormatCharacterEffect(effect);
-                            if (!string.IsNullOrEmpty(effectText))
+                            if (effect != null)
                             {
-                                result.Append($"{effectText}, ");
+                                // Format the effect properly with stat name and value
+                                string effectText = FormatCharacterEffect(effect);
+                                if (!string.IsNullOrEmpty(effectText))
+                                {
+                                    effectsList.Add(effectText);
+                                }
                             }
                         }
+                        result.Append(string.Join(", ", effectsList));
                     }
                 }
 
                 // Add substance (consumable) information
                 if (item.substance)
                 {
-                    result.Append(". Consumable");
+                    result.Append(" - Consumable");
 
                     // Add number of uses for multi-use items
                     if (item.substanceUses > 0)
@@ -484,7 +501,7 @@ namespace AccessibilityMod.Patches
                     // Add substance effects (bonuses/penalties when consumed)
                     if (item.substanceBuffs != null && item.substanceBuffs.Count > 0)
                     {
-                        result.Append(". Effects: ");
+                        result.Append(" - Effects: ");
                         var effectsList = new System.Collections.Generic.List<string>();
 
                         foreach (var buff in item.substanceBuffs)
@@ -515,7 +532,7 @@ namespace AccessibilityMod.Patches
                 // Add item description if it exists
                 if (!string.IsNullOrEmpty(item.description))
                 {
-                    result.Append($". {item.description}");
+                    result.Append($" - Description: {item.description}");
                 }
 
                 // Add item value if it exists
@@ -524,12 +541,12 @@ namespace AccessibilityMod.Patches
                     // itemValue is stored in cents
                     if (item.itemValue < 100)
                     {
-                        result.Append($". Value: {item.itemValue} cents");
+                        result.Append($" - Value: {item.itemValue} cents");
                     }
                     else
                     {
                         decimal valueInReal = item.itemValue / 100m;
-                        result.Append($". Value: {valueInReal:F2} reál");
+                        result.Append($" - Value: {valueInReal:F2} reál");
                     }
                 }
 
@@ -547,19 +564,19 @@ namespace AccessibilityMod.Patches
             try
             {
                 if (effect == null) return null;
-                
+
                 // Try using the EffectName method which should format it properly
                 string effectName = effect.EffectName(editor: false, withColor: false, revertTagsForRTL: false, revertFormatForRTL: false);
                 if (!string.IsNullOrEmpty(effectName))
                 {
                     return effectName;
                 }
-                
+
                 // Fallback: construct manually from properties
                 string sign = effect.Sign ?? "";
                 int value = effect.parameter;
                 string statName = "";
-                
+
                 // Try to get skill name first
                 if (effect.skillType != Il2CppSunshine.Metric.SkillType.NONE)
                 {
@@ -570,14 +587,14 @@ namespace AccessibilityMod.Patches
                 {
                     statName = effect.abilityType.ToString();
                 }
-                
+
                 if (!string.IsNullOrEmpty(statName))
                 {
                     // Clean up the stat name (remove underscores, etc)
                     statName = statName.Replace("_", " ");
                     return $"{sign}{value} {statName}";
                 }
-                
+
                 return null;
             }
             catch (Exception ex)
@@ -585,6 +602,121 @@ namespace AccessibilityMod.Patches
                 MelonLogger.Msg($"Error formatting character effect: {ex.Message}");
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Extract all effect lines from the item tooltip, including flavor text.
+        /// Returns effect lines like "+1 Suggestion: Aye, Captain!" or "Equip this to open locked containers"
+        /// </summary>
+        private static List<string> ExtractEffectsFromItemTooltip()
+        {
+            var effects = new HashSet<string>(); // Use HashSet to avoid duplicates
+            try
+            {
+                // Search for any active tooltip GameObjects in the scene
+                // Look for objects with "tooltip" in the name that are active
+                var allObjects = UnityEngine.Object.FindObjectsOfType<GameObject>();
+                foreach (var obj in allObjects)
+                {
+                    if (obj == null || !obj.activeInHierarchy)
+                        continue;
+
+                    string objNameLower = obj.name.ToLower();
+                    if (!objNameLower.Contains("tooltip"))
+                        continue;
+
+                    // Found a tooltip object, search for text components with effect patterns
+                    var tooltipTexts = obj.GetComponentsInChildren<TextMeshProUGUI>(true);
+                    if (tooltipTexts != null)
+                    {
+                        foreach (var textComp in tooltipTexts)
+                        {
+                            if (textComp != null && !string.IsNullOrEmpty(textComp.text))
+                            {
+                                // Look for the properties/bonuses text component
+                                string compName = textComp.gameObject.name.ToLower();
+                                if (compName.Contains("propert") || compName.Contains("bonus") ||
+                                    compName.Contains("effect") || compName.Contains("stat"))
+                                {
+                                    ParseEffectLines(textComp.text, effects);
+                                    if (effects.Count > 0) return new List<string>(effects);
+                                }
+                            }
+                        }
+
+                        // If we didn't find a specific component, search all text for effect patterns
+                        if (effects.Count == 0)
+                        {
+                            foreach (var textComp in tooltipTexts)
+                            {
+                                if (textComp != null && !string.IsNullOrEmpty(textComp.text))
+                                {
+                                    // Look for text containing skill effect patterns or special effect patterns
+                                    if (Regex.IsMatch(textComp.text, @"[+-]\d+\s+\w+") ||
+                                        Regex.IsMatch(textComp.text, @"Equip th(is|ese)"))
+                                    {
+                                        ParseEffectLines(textComp.text, effects);
+                                        if (effects.Count > 0) return new List<string>(effects);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"Error extracting effects from item tooltip: {ex}");
+            }
+            return new List<string>(effects);
+        }
+
+        /// <summary>
+        /// Parse effect lines from tooltip text, handling both skill effects with flavor and standalone effects
+        /// </summary>
+        private static void ParseEffectLines(string text, HashSet<string> effects)
+        {
+            var lines = text.Split('\n');
+            foreach (var line in lines)
+            {
+                var trimmedLine = line.Trim();
+                if (string.IsNullOrEmpty(trimmedLine))
+                    continue;
+
+                // Remove color tags
+                var cleanLine = Regex.Replace(trimmedLine, @"</?color[^>]*>", "").Trim();
+
+                if (string.IsNullOrEmpty(cleanLine))
+                    continue;
+
+                // Skip metadata lines
+                if (IsMetadataLine(cleanLine))
+                    continue;
+
+                // Skip lines that end with colon but have no content (headers)
+                if (cleanLine.EndsWith(":"))
+                    continue;
+
+                // Check if this looks like an effect line (starts with +/- and number)
+                // OR if it's a special effect line like "Equip this/these to..."
+                if (Regex.IsMatch(cleanLine, @"^[+-]\d+") ||
+                    Regex.IsMatch(cleanLine, @"^Equip th(is|ese)"))
+                {
+                    effects.Add(cleanLine);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check if a line is metadata rather than an actual effect
+        /// </summary>
+        private static bool IsMetadataLine(string line)
+        {
+            var lowerLine = line.ToLower();
+            return lowerLine.StartsWith("value") ||
+                   lowerLine.StartsWith("weight") ||
+                   lowerLine.StartsWith("uses") ||
+                   lowerLine.Contains("remaining");
         }
     }
 }
