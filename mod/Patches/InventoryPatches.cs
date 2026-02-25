@@ -613,51 +613,31 @@ namespace AccessibilityMod.Patches
             var effects = new HashSet<string>(); // Use HashSet to avoid duplicates
             try
             {
-                // Search for any active tooltip GameObjects in the scene
-                // Look for objects with "tooltip" in the name that are active
-                var allObjects = UnityEngine.Object.FindObjectsOfType<GameObject>();
-                foreach (var obj in allObjects)
+                var tooltip = InventoryTooltip.Singleton;
+                if (tooltip != null && tooltip.gameObject.activeInHierarchy)
                 {
-                    if (obj == null || !obj.activeInHierarchy)
-                        continue;
+                    // First try the dedicated properties TextMeshProUGUI field
+                    var propertiesComp = tooltip.properties;
+                    if (propertiesComp != null && !string.IsNullOrEmpty(propertiesComp.text))
+                    {
+                        ParseEffectLines(propertiesComp.text, effects);
+                        if (effects.Count > 0) return new List<string>(effects);
+                    }
 
-                    string objNameLower = obj.name.ToLower();
-                    if (!objNameLower.Contains("tooltip"))
-                        continue;
-
-                    // Found a tooltip object, search for text components with effect patterns
-                    var tooltipTexts = obj.GetComponentsInChildren<TextMeshProUGUI>(true);
+                    // Fall back to scanning all text children for effect patterns
+                    var tooltipTexts = tooltip.gameObject.GetComponentsInChildren<TextMeshProUGUI>(true);
                     if (tooltipTexts != null)
                     {
                         foreach (var textComp in tooltipTexts)
                         {
                             if (textComp != null && !string.IsNullOrEmpty(textComp.text))
                             {
-                                // Look for the properties/bonuses text component
-                                string compName = textComp.gameObject.name.ToLower();
-                                if (compName.Contains("propert") || compName.Contains("bonus") ||
-                                    compName.Contains("effect") || compName.Contains("stat"))
+                                // Look for text containing skill effect patterns or special effect patterns
+                                if (Regex.IsMatch(textComp.text, @"[+-]\d+\s+\w+") ||
+                                    Regex.IsMatch(textComp.text, @"Equip th(is|ese)"))
                                 {
                                     ParseEffectLines(textComp.text, effects);
                                     if (effects.Count > 0) return new List<string>(effects);
-                                }
-                            }
-                        }
-
-                        // If we didn't find a specific component, search all text for effect patterns
-                        if (effects.Count == 0)
-                        {
-                            foreach (var textComp in tooltipTexts)
-                            {
-                                if (textComp != null && !string.IsNullOrEmpty(textComp.text))
-                                {
-                                    // Look for text containing skill effect patterns or special effect patterns
-                                    if (Regex.IsMatch(textComp.text, @"[+-]\d+\s+\w+") ||
-                                        Regex.IsMatch(textComp.text, @"Equip th(is|ese)"))
-                                    {
-                                        ParseEffectLines(textComp.text, effects);
-                                        if (effects.Count > 0) return new List<string>(effects);
-                                    }
                                 }
                             }
                         }
