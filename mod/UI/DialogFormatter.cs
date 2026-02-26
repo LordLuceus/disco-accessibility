@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
+using Il2Cpp;
+using Il2CppTMPro;
+using MelonLoader;
 using UnityEngine;
 using UnityEngine.UI;
-using Il2CppTMPro;
-using Il2Cpp;
-using MelonLoader;
 
 namespace AccessibilityMod.UI
 {
@@ -20,7 +20,8 @@ namespace AccessibilityMod.UI
         {
             try
             {
-                if (uiObject == null) return null;
+                if (uiObject == null)
+                    return null;
 
                 // Check for SunshineResponseButton component (Disco Elysium's dialog choices)
                 var responseButton = uiObject.GetComponent<Il2Cpp.SunshineResponseButton>();
@@ -30,7 +31,8 @@ namespace AccessibilityMod.UI
                 }
 
                 // Also check if this might be a child of a response button
-                var parentResponseButton = uiObject.GetComponentInParent<Il2Cpp.SunshineResponseButton>();
+                var parentResponseButton =
+                    uiObject.GetComponentInParent<Il2Cpp.SunshineResponseButton>();
                 if (parentResponseButton != null)
                 {
                     return FormatDialogResponseText(parentResponseButton);
@@ -52,7 +54,8 @@ namespace AccessibilityMod.UI
         {
             try
             {
-                if (responseButton == null) return null;
+                if (responseButton == null)
+                    return null;
 
                 string dialogText = "";
 
@@ -60,7 +63,10 @@ namespace AccessibilityMod.UI
                 if (responseButton.optionText != null)
                 {
                     // Try to get text from the textField component
-                    if (responseButton.optionText.textField != null && !string.IsNullOrEmpty(responseButton.optionText.textField.text))
+                    if (
+                        responseButton.optionText.textField != null
+                        && !string.IsNullOrEmpty(responseButton.optionText.textField.text)
+                    )
                     {
                         dialogText = responseButton.optionText.textField.text.Trim();
                     }
@@ -79,11 +85,19 @@ namespace AccessibilityMod.UI
                 }
 
                 // Check if we should skip dialog text to avoid interrupting dialog reading
-                bool skipDialogText = DialogStateManager.IsInConversation() && DialogStateManager.IsDialogReadingEnabled;
+                bool skipDialogText =
+                    DialogStateManager.IsInConversation()
+                    && DialogStateManager.IsDialogReadingEnabled;
 
                 // Return dialog text for non-skill checks
                 if (!string.IsNullOrEmpty(dialogText) && !skipDialogText)
                 {
+                    // Check if this dialogue option has been previously discussed
+                    bool isPreviouslyDiscussed = CheckIfPreviouslyDiscussed(responseButton);
+                    if (isPreviouslyDiscussed)
+                    {
+                        return $"{dialogText} (discussed)";
+                    }
                     return dialogText;
                 }
 
@@ -97,25 +111,52 @@ namespace AccessibilityMod.UI
         }
 
         /// <summary>
+        /// Check if a dialogue response option has been previously discussed
+        /// Uses the game's SunshineNode.IsSeen() method which tracks SimStatus
+        /// </summary>
+        private static bool CheckIfPreviouslyDiscussed(Il2Cpp.SunshineResponseButton responseButton)
+        {
+            try
+            {
+                // Get the DialogueEntry associated with this response button
+                var entry = responseButton.entry;
+                if (entry == null)
+                {
+                    return false;
+                }
+
+                // Use the game's IsSeen method to check if this entry has been visited
+                // This checks the Pixel Crushers Dialogue System's SimStatus property
+                return Il2Cpp.SunshineNode.IsSeen(entry);
+            }
+            catch (Exception ex)
+            {
+                MelonLogger.Error($"Error checking if dialogue previously discussed: {ex}");
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Check for confirmation dialog elements
         /// </summary>
         public static string GetConfirmationTextContext(GameObject uiObject)
         {
             try
             {
-                var confirmationController = UnityEngine.Object.FindObjectOfType<ConfirmationController>();
+                var confirmationController =
+                    UnityEngine.Object.FindObjectOfType<ConfirmationController>();
                 if (confirmationController == null || !confirmationController.IsVisible)
                 {
                     return null;
                 }
-                
+
                 // Check if this is the main text of the confirmation dialog
                 var textComponent = uiObject.GetComponent<Text>();
                 if (textComponent != null && confirmationController.Text == textComponent)
                 {
                     return $"Confirmation: {textComponent.text}";
                 }
-                
+
                 return null;
             }
             catch (Exception ex)
@@ -132,30 +173,33 @@ namespace AccessibilityMod.UI
         {
             try
             {
-                var confirmationController = UnityEngine.Object.FindObjectOfType<ConfirmationController>();
+                var confirmationController =
+                    UnityEngine.Object.FindObjectOfType<ConfirmationController>();
                 if (confirmationController == null || !confirmationController.IsVisible)
                 {
                     return null;
                 }
-                
+
                 string message = "";
                 if (confirmationController.Text != null)
                 {
                     message = confirmationController.Text.text;
                 }
-                
+
                 // Check if this button is the Confirm button
                 if (confirmationController.Confirm == button)
                 {
-                    return !string.IsNullOrEmpty(message) ? $"Confirm: {message}" : "Confirm Button";
+                    return !string.IsNullOrEmpty(message)
+                        ? $"Confirm: {message}"
+                        : "Confirm Button";
                 }
-                
+
                 // Check if this button is the Cancel button
                 if (confirmationController.Cancel == button)
                 {
                     return !string.IsNullOrEmpty(message) ? $"Cancel: {message}" : "Cancel Button";
                 }
-                
+
                 return null;
             }
             catch (Exception ex)
