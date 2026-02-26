@@ -256,9 +256,16 @@ namespace AccessibilityMod.UI
                         var project = thoughtSlot.Project;
                         if (project != null)
                         {
-                            string mechanicalEffects = GetMechanicalEffectsWithFlavor(project, project.state, thoughtSlot.gameObject);
+                            string mechanicalEffects = GetMechanicalEffectsWithFlavor(
+                                project,
+                                project.state,
+                                thoughtSlot.gameObject
+                            );
+                            string effectsLabel = (project.state == ThoughtState.KNOWN || project.state == ThoughtState.COOKING)
+                                ? "Temporary research bonus"
+                                : "Effects";
                             string effects = !string.IsNullOrEmpty(mechanicalEffects)
-                                ? $" - Effects: {mechanicalEffects}"
+                                ? $" - {effectsLabel}: {mechanicalEffects}"
                                 : "";
                             return $"Equipped thought: {project.displayName}{effects}";
                         }
@@ -306,9 +313,16 @@ namespace AccessibilityMod.UI
 
                 if (project != null)
                 {
-                    string mechanicalEffects = GetMechanicalEffectsWithFlavor(project, project.state, pageThoughtSlot.gameObject);
+                    string mechanicalEffects = GetMechanicalEffectsWithFlavor(
+                        project,
+                        project.state,
+                        pageThoughtSlot.gameObject
+                    );
+                    string effectsLabel = (project.state == ThoughtState.KNOWN || project.state == ThoughtState.COOKING)
+                        ? "Temporary research bonus"
+                        : "Effects";
                     string effects = !string.IsNullOrEmpty(mechanicalEffects)
-                        ? $" - Effects: {mechanicalEffects}"
+                        ? $" - {effectsLabel}: {mechanicalEffects}"
                         : "";
                     return $"Thought: {project.displayName}{effects}";
                 }
@@ -392,10 +406,19 @@ namespace AccessibilityMod.UI
                     }
 
                     // Add actual mechanical effects FIRST (most important info)
-                    string mechanicalEffects = GetMechanicalEffectsWithFlavor(project, state, thoughtOnList.gameObject);
+                    string mechanicalEffects = GetMechanicalEffectsWithFlavor(
+                        project,
+                        state,
+                        thoughtOnList.gameObject
+                    );
                     if (!string.IsNullOrEmpty(mechanicalEffects))
                     {
-                        announcement += $" - Effects: {mechanicalEffects}";
+                        // Use "Temporary research bonus" for thoughts being researched or available for research
+                        // Use "Effects" for completed/equipped thoughts
+                        string effectsLabel = (state == ThoughtState.KNOWN || state == ThoughtState.COOKING)
+                            ? "Temporary research bonus"
+                            : "Effects";
+                        announcement += $" - {effectsLabel}: {mechanicalEffects}";
                     }
 
                     // Add description last (it's usually long flavor text)
@@ -723,6 +746,14 @@ namespace AccessibilityMod.UI
         {
             try
             {
+                // First, try to get effects directly from tooltip (most accurate, includes flavor text)
+                var tooltipEffects = ExtractAllEffectsFromTooltip();
+                if (tooltipEffects.Count > 0)
+                {
+                    return string.Join(", ", tooltipEffects);
+                }
+
+                // Fall back to CharacterEffect API if tooltip isn't available
                 var effects = new List<string>();
 
                 // Get relevant effects based on thought state
@@ -742,9 +773,6 @@ namespace AccessibilityMod.UI
 
                 if (effectArray != null && effectArray.Count > 0)
                 {
-                    // Try to extract effect-flavor mapping from tooltip
-                    var effectFlavorMap = ExtractEffectFlavorTextFromTooltip();
-
                     for (int i = 0; i < effectArray.Count; i++)
                     {
                         var effect = effectArray[i];
@@ -753,12 +781,6 @@ namespace AccessibilityMod.UI
                             string effectDesc = FormatCharacterEffect(effect);
                             if (!string.IsNullOrEmpty(effectDesc))
                             {
-                                // Try to find matching flavor text from the tooltip
-                                if (effectFlavorMap.ContainsKey(effectDesc))
-                                {
-                                    string flavorText = effectFlavorMap[effectDesc];
-                                    effectDesc = $"{effectDesc}: {flavorText}";
-                                }
                                 effects.Add(effectDesc);
                             }
                         }
@@ -775,35 +797,43 @@ namespace AccessibilityMod.UI
         }
 
         /// <summary>
-        /// Extract effect texts from the tooltip PropertiesText component
+        /// Extract all effect lines directly from the tooltip PropertiesText component.
+        /// Returns a list of formatted effect strings ready for announcement.
         /// </summary>
-        private static Dictionary<string, string> ExtractEffectFlavorTextFromTooltip()
+        private static List<string> ExtractAllEffectsFromTooltip()
         {
-            var effectFlavorMap = new Dictionary<string, string>();
+            var effects = new List<string>();
             try
             {
                 // Try to find ThoughtCabinetTooltip with PropertiesText
-                var tooltip = UnityEngine.Object.FindObjectOfType<Il2CppSunshine.ThoughtCabinetTooltip>();
+                var tooltip =
+                    UnityEngine.Object.FindObjectOfType<Il2CppSunshine.ThoughtCabinetTooltip>();
                 if (tooltip != null && tooltip.gameObject.activeInHierarchy)
                 {
-                    var tooltipTexts = tooltip.gameObject.GetComponentsInChildren<TextMeshProUGUI>(true);
+                    var tooltipTexts = tooltip.gameObject.GetComponentsInChildren<TextMeshProUGUI>(
+                        true
+                    );
                     if (tooltipTexts != null)
                     {
                         foreach (var textComp in tooltipTexts)
                         {
-                            if (textComp != null && !string.IsNullOrEmpty(textComp.text) &&
-                                textComp.gameObject.name == "PropertiesText")
+                            if (
+                                textComp != null
+                                && !string.IsNullOrEmpty(textComp.text)
+                                && textComp.gameObject.name == "PropertiesText"
+                            )
                             {
                                 string text = textComp.text;
 
                                 // Parse the properties text which contains lines like:
                                 // "+2 Volition: Magnesium receptacle glands"
                                 // "-1 Logic: No such thing, man"
+                                // "ENCYCLOPEDIA passives give +10 XP and +✤2.00 reál"
                                 var lines = text.Split('\n');
                                 foreach (var line in lines)
                                 {
                                     var trimmedLine = line.Trim();
-                                    if (string.IsNullOrEmpty(trimmedLine) || trimmedLine.Contains("Bonuses from"))
+                                    if (string.IsNullOrEmpty(trimmedLine))
                                         continue;
 
                                     // Remove color tags
@@ -811,16 +841,20 @@ namespace AccessibilityMod.UI
                                         trimmedLine,
                                         @"</?color[^>]*>",
                                         ""
-                                    );
+                                    ).Trim();
 
-                                    // Parse format: "+2 Volition: Magnesium receptacle glands"
-                                    var colonIndex = cleanLine.IndexOf(':');
-                                    if (colonIndex > 0)
-                                    {
-                                        var effectPart = cleanLine.Substring(0, colonIndex).Trim();
-                                        var flavorPart = cleanLine.Substring(colonIndex + 1).Trim();
-                                        effectFlavorMap[effectPart] = flavorPart;
-                                    }
+                                    if (string.IsNullOrEmpty(cleanLine))
+                                        continue;
+
+                                    // Skip metadata/header lines that aren't actual effects
+                                    if (IsMetadataLine(cleanLine))
+                                        continue;
+
+                                    // Skip lines that end with colon but have no content (headers)
+                                    if (cleanLine.EndsWith(":"))
+                                        continue;
+
+                                    effects.Add(cleanLine);
                                 }
                                 break;
                             }
@@ -830,9 +864,21 @@ namespace AccessibilityMod.UI
             }
             catch (Exception ex)
             {
-                MelonLogger.Error($"Error extracting effect flavor text from tooltip: {ex}");
+                MelonLogger.Error($"Error extracting effects from tooltip: {ex}");
             }
-            return effectFlavorMap;
+            return effects;
+        }
+
+        /// <summary>
+        /// Check if a line is metadata rather than an actual effect
+        /// </summary>
+        private static bool IsMetadataLine(string line)
+        {
+            var lowerLine = line.ToLower();
+            return lowerLine.StartsWith("research time")
+                || lowerLine.StartsWith("bonuses from")
+                || lowerLine.StartsWith("time remaining")
+                || lowerLine.StartsWith("time left");
         }
 
         /// <summary>
@@ -855,8 +901,14 @@ namespace AccessibilityMod.UI
                         if (textComp != null && !string.IsNullOrEmpty(textComp.text))
                         {
                             string text = textComp.text.Trim();
-                            if (text.Length > 5 && !text.StartsWith("+") && !text.StartsWith("-") &&
-                                !text.All(c => char.IsDigit(c) || char.IsWhiteSpace(c) || c == '+' || c == '-'))
+                            if (
+                                text.Length > 5
+                                && !text.StartsWith("+")
+                                && !text.StartsWith("-")
+                                && !text.All(c =>
+                                    char.IsDigit(c) || char.IsWhiteSpace(c) || c == '+' || c == '-'
+                                )
+                            )
                             {
                                 texts.Add(text);
                             }
@@ -870,7 +922,6 @@ namespace AccessibilityMod.UI
             }
             return texts;
         }
-
 
         /// <summary>
         /// Format a single CharacterEffect into human-readable text
