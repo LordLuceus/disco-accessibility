@@ -110,7 +110,10 @@ namespace AccessibilityMod.Input
             }
             else if (backslashDown)  // \
             {
-                navigationSystem.SelectCategory(ObjectCategory.Loot);
+                if (navigationSystem.IsWaypointFocus)
+                    TolkScreenReader.Instance.Speak("Press left bracket for NPC waypoints, right bracket for locations, or equals for all.", true);
+                else
+                    navigationSystem.SelectCategory(ObjectCategory.Loot);
             }
             else if (equalsDown)  // =
             {
